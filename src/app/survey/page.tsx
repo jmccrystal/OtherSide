@@ -2,43 +2,53 @@
 // The form data should be sent in to be stored with the user's profile, and also sent along with everyone else's data to the GPT API be matched with other users.
 // For the GPT API, we will need to send the data in a specific format, and then receive the data back in a specific format, so prompt accordingly.
 
-// ChatGPT Prompt:
-// You are trying to match up users with the most DIFFERENT beliefs. The following is a list of questions that a user has answered.
-// After that, you will receive a list of other users' answers to the same questions. You must match the user with the most different beliefs from the user.
-// Your response should consist ONLY of the user's ID that you are matching with the user.
-//
-
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-// Assuming questions.json exists at this location
 import questions from './questions.json';
 
 export default function Survey() {
     const router = useRouter();
     const [answers, setAnswers] = useState({});
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        // Get current user
         const { data: { user } } = await supabase.auth.getUser();
-        await supabase.from('survey_responses').insert([{
-            user_id: user.id,
-            answers: answers
-        }]);
-        router.push('/survey/matching');
+
+        if (user) {
+            // First make sure profile exists
+            const { error: profileError } = await supabase.from('profile').upsert({
+                id: user.id,
+                name: user.user_metadata?.name || user.user_metadata?.full_name,
+                email: user.email,
+                avatar_url: user.user_metadata?.avatar_url
+            });
+
+            if (profileError) console.error("Profile error:", profileError);
+
+            // Then save survey answers
+            const { error: surveyError } = await supabase.from('survey_responses').insert({
+                user_id: user.id,
+                answers: answers
+            });
+
+            if (surveyError) console.error("Survey error:", surveyError);
+            else router.push('/matching');
+        }
     };
 
-    // @ts-ignore
     return (
         <form onSubmit={handleSubmit}>
             {questions.map((q, i) => (
                 <div key={i}>
                     <h3>{q.question}</h3>
 
-                    {q.type === 'multiple_choice' && q.options.map((option, j) => (
+                    {q.type === 'multiple_choice' && q.options?.map((option, j) => (
                         <label key={j}>
                             <input
                                 type="radio"
@@ -62,4 +72,5 @@ export default function Survey() {
         </form>
     );
 }
+
 
