@@ -41,4 +41,16 @@ const styles = {
   },
 };
 
+const fetchAllResponses = async () => {
+    const { data, error } = await supabase.from('survey_responses').select('*');
+  
+    if (error) {
+      console.error('Error fetching survey responses:', error);
+      return;
+    }
+  
+    console.log('Survey responses:', data);
+    return data;
+  };
+
 export default LoadingScreen;
