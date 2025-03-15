@@ -10,13 +10,56 @@
 
 'use client';
 
-export default function PageName() {
-    return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4">Matching Survey</h1>
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
-        </div>
+// Assuming questions.json exists at this location
+import questions from './questions.json';
+
+export default function Survey() {
+    const router = useRouter();
+    const [answers, setAnswers] = useState({});
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('survey_responses').insert([{
+            user_id: user.id,
+            answers: answers
+        }]);
+        router.push('/survey/matching');
+    };
+
+    // @ts-ignore
+    return (
+        <form onSubmit={handleSubmit}>
+            {questions.map((q, i) => (
+                <div key={i}>
+                    <h3>{q.question}</h3>
+
+                    {q.type === 'multiple_choice' && q.options.map((option, j) => (
+                        <label key={j}>
+                            <input
+                                type="radio"
+                                name={`q-${i}`}
+                                onChange={() => setAnswers({...answers, [i]: option})}
+                                required
+                            />
+                            {option}
+                        </label>
+                    ))}
+
+                    {q.type === 'free_response' && (
+                        <textarea
+                            onChange={(e) => setAnswers({...answers, [i]: e.target.value})}
+                            required
+                        />
+                    )}
+                </div>
+            ))}
+            <button type="submit">Submit</button>
+        </form>
     );
 }
-
 

@@ -1,0 +1,28 @@
+[
+  {
+    "question": "How would you describe your political leaning?",
+    "type": "multiple_choice",
+    "options": [
+      "Very liberal",
+      "Somewhat liberal",
+      "Moderate",
+      "Somewhat conservative",
+      "Very conservative"
+    ]
+  },
+  {
+    "question": "What's your stance on climate change?",
+    "type": "multiple_choice",
+    "options": [
+      "Urgent crisis requiring immediate action",
+      "Serious concern but balanced approach",
+      "Needs attention but not a crisis",
+      "Skeptical about severity",
+      "Not convinced by current evidence"
+    ]
+  },
+  {
+    "question": "What's a political or social topic you feel strongly about, and why?",
+    "type": "free_response"
+  }
+]
