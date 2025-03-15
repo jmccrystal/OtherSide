@@ -29,3 +29,19 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg)}
 }
+
+textarea {
+  color: black; /* Ensures text inside the textbox is always black */
+  background-color: white; /* Ensures a light background for visibility */
+  border: 1px solid #d1d5db;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease-in-out;
+}
+
+textarea:focus {
+  border-color: #6366f1;
+  outline: none;
+  box-shadow: 0 0 4px rgba(99, 102, 241, 0.5);
+}
