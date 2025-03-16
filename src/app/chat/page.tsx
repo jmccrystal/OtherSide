@@ -110,7 +110,7 @@ export default function Chat() {
     };
 
     fetchMessages();
-    // Poll every 100ms in case realtime misses an update
+    // Poll every 100 ms in case realtime misses an update
     const interval = setInterval(fetchMessages, 100);
 
     // Realtime subscription for new messages
@@ -187,17 +187,22 @@ export default function Chat() {
     }
   };
 
+  // Updated findNewMatch function: adds current match to previous_matches and clears current match info.
   const findNewMatch = async () => {
-    if (userId) {
+    if (userId && matchId && myProfile) {
+      const updatedResponses = {
+        ...myProfile.responses,
+        previous_matches: [...(myProfile.responses?.previous_matches || []), matchId],
+        matched_with: null,
+        match_reason: null,
+        disagreement_score: null,
+      };
+
       await supabase
           .from('profile')
-          .update({
-            responses: {
-              ...myProfile?.responses,
-              previous_matches: [...(myProfile?.responses?.previous_matches || []), matchId]
-            }
-          })
+          .update({ responses: updatedResponses })
           .eq('id', userId);
+
       router.push('/matching');
     }
   };
