@@ -1,8 +1,55 @@
 'use client';
 
+import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { setupActivityTracking } from '@/lib/activity';
 
 export default function Home() {
+    const router = useRouter();
+
+    useEffect(() => {
+        // Set up activity tracking
+        const cleanup = setupActivityTracking();
+
+        // Check if user is already logged in
+        const checkAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session) {
+                // Check if user has completed survey
+                const { data: surveyData } = await supabase
+                    .from('survey_responses')
+                    .select('*')
+                    .eq('user_id', session.user.id);
+
+                if (surveyData && surveyData.length > 0) {
+                    // Check if user already has a match
+                    const { data: profile } = await supabase
+                        .from('profile')
+                        .select('responses')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (profile?.responses?.matched_with) {
+                        // User has a match, go to chat
+                        router.push(`/chat?match=${profile.responses.matched_with}`);
+                    } else {
+                        // User completed survey but no match yet
+                        router.push('/matching');
+                    }
+                } else {
+                    // User logged in but no survey yet
+                    router.push('/survey');
+                }
+            }
+        };
+
+        checkAuth();
+
+        return cleanup;
+    }, [router]);
+
     const signInWithGoogle = async () => {
         await supabase.auth.signInWithOAuth({
             provider: 'google',

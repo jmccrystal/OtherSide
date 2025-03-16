@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { updateActivity } from "@/lib/activity";
 
 interface Message {
   id: string;
@@ -52,6 +53,9 @@ export default function Chat() {
   // Auth and profile data
   useEffect(() => {
     const getAuth = async () => {
+      // Update activity status
+      updateActivity();
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/');
@@ -360,7 +364,7 @@ export default function Chat() {
             <div className="flex items-center">
               <input
                   type="text"
-                  className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 placeholder-gray-500"
                   placeholder="Type a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
