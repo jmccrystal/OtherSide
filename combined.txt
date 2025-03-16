@@ -1,0 +1,562 @@
+=== next-env.d.ts ===
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+/// <reference types="next/navigation-types/compat/navigation" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+=== README.md ===
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+=== package.json ===
+{
+  "name": "other-side",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "next": "15.2.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "supabase": "^2.19.7"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
+=== tsconfig.json ===
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+=== script.py ===
+import os
+
+def combine_files_recursively(directory, target_extensions, output_file, exclude_patterns=None):
+    """
+    Combines files with specific extensions found recursively in a directory,
+    excluding files or directories that match any of the exclude_patterns.
+
+    Parameters:
+    - directory: Top-level directory to start searching.
+    - target_extensions: A list of file extensions to include (e.g. [".js", ".py"]).
+    - output_file: Path to the output file where the combined content will be written.
+    - exclude_patterns: A list of substrings. If any is found in a file or folder name (case-insensitive),
+                        that file/folder is skipped.
+    """
+    if exclude_patterns is None:
+        exclude_patterns = []
+
+    # Get the current working directory to compute relative paths
+    current_dir = os.getcwd()
+
+    # Open the output file in write mode (overwrite if exists)
+    with open(output_file, 'w', encoding='utf-8') as outfile:
+        # Walk through the directory, including all subdirectories
+        for root, dirs, files in os.walk(directory):
+            # Exclude directories whose names contain any of the exclusion patterns.
+            dirs[:] = [d for d in dirs if not any(pattern.lower() in d.lower() for pattern in exclude_patterns)]
+
+            for filename in files:
+                # Exclude files whose names contain any of the exclusion patterns.
+                if any(pattern.lower() in filename.lower() for pattern in exclude_patterns):
+                    continue
+
+                # Check if the file's extension matches one of the target extensions.
+                if any(filename.lower().endswith(ext.lower()) for ext in target_extensions):
+                    file_path = os.path.join(root, filename)
+                    # Compute the relative path from the current directory.
+                    rel_path = os.path.relpath(file_path, current_dir)
+
+                    # Write the relative file path as a header in the output file.
+                    outfile.write(f"=== {rel_path} ===\n")
+
+                    # Read and write the file contents.
+                    with open(file_path, 'r', encoding='utf-8', errors='replace') as infile:
+                        contents = infile.read()
+                        outfile.write(contents)
+                        outfile.write("\n")  # Add a separator newline
+
+if __name__ == "__main__":
+    # Example usage:
+    directory = "."
+    # Specify multiple file extensions to include.
+    target_extensions = [".js", ".html", ".json", "Dockerfile", ".ts", ".css", ".scss", ".md", ".yml", ".yaml", ".tsx", ".jsx", ".sql", ".sh", ".py"]
+    output_file = os.path.join(directory, "combined.txt")
+    # Exclude any file or folder that contains these substrings (e.g., "node_modules", "package-lock.json", etc.)
+    exclude_patterns = ["node_modules", "package-lock.json", "metadata", "schema", ".next", ".git", ".idea", ".vscode", ".env", ".gitignore", ".dockerignore", ".eslintrc", ".prettierrc", ".editorconfig", ".gitattributes", ".babelrc", ".npmrc", ".yarnrc", ".yarn", ".lock", ".cache", ".log", ".tmp", ".swp", ".swm", ".swo", ".venv"]
+
+    combine_files_recursively(directory, target_extensions, output_file, exclude_patterns)
+    print(f"Files with extensions {target_extensions} from {os.getcwd()} have been combined into {output_file}.")
+
+=== next.config.ts ===
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+
+=== src/app/layout.tsx ===
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Create Next App",
+  description: "Generated by create next app",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+      </body>
+    </html>
+  );
+}
+
+=== src/app/page.tsx ===
+'use client';
+
+import { supabase } from '@/lib/supabase';
+
+export default function Home() {
+    const signInWithGoogle = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: `${window.location.origin}/survey`
+            }
+        });
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-500 to-purple-600 p-4">
+            <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+                <h1 className="text-3xl font-bold mb-3 text-gray-800">
+                    The Other Side
+                </h1>
+                <p className="text-lg mb-6 text-gray-600">
+                    Connect with people who see the world differently
+                </p>
+
+                <button
+                    onClick={signInWithGoogle}
+                    className="flex items-center justify-center w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                >
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="currentColor"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+            </div>
+        </div>
+    );
+}
+=== src/app/globals.css ===
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg)}
+}
+=== src/app/matching/page.tsx ===
+// Matching page will do a few things:
+// 1. Fetch all survey responses from the database
+// 2. Send all survey responses, along with user responses to the GPT API
+// 3. Add current user's responses to their own user profile
+
+// Actual page should only consist of "Finding your match..." with a loading spinner.
+
+
+import React from 'react';
+
+const LoadingScreen: React.FC = () => {
+  return (
+    <div style={styles.container}>
+      <div style={styles.loader}></div>
+      <div style={styles.loadingText}>Loading...</div>
+    </div>
+  );
+};
+
+const styles = {
+  container: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    backgroundColor: '#f0f0f0',
+    flexDirection: 'column',
+  },
+  loader: {
+    border: '8px solid #f3f3f3',
+    borderTop: '8px solid #3498db',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    animation: 'spin 2s linear infinite',
+    marginBottom: '20px',
+  },
+  loadingText: {
+    fontSize: '20px',
+    color: '#333',
+  },
+};
+
+const fetchAllResponses = async () => {
+    const { data, error } = await supabase.from('survey_responses').select('*');
+  
+    if (error) {
+      console.error('Error fetching survey responses:', error);
+      return;
+    }
+  
+    console.log('Survey responses:', data);
+    return data;
+  };
+
+export default LoadingScreen;
+=== src/app/chat/page.tsx ===
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+
+const generateUserId = () => "user-" + Math.random().toString(36).substring(2, 15);
+
+interface Message {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+}
+
+export default function Chat() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const userId = generateUserId(); 
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) console.error("Error fetching messages:", error);
+      else setMessages(data || []);
+    };
+    fetchMessages();
+
+    
+    const subscription = supabase
+      .channel("public:messages")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        setMessages((prevMessages) => [...prevMessages, payload.new as Message]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
+  const sendMessage = async () => {
+    if (newMessage.trim() === "") return;
+
+    const message = {
+      user_id: userId,
+      content: newMessage,
+      created_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("messages").insert([message]);
+
+    if (error) console.error("Error sending message:", error);
+    else setNewMessage("");
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center">
+      <div className="w-full max-w-2xl p-4 bg-white shadow-lg rounded-lg mt-8">
+        <h1 className="text-2xl font-bold text-center mb-4">Chat Room</h1>
+
+        <div className="h-96 overflow-y-auto p-4 bg-gray-50 rounded-lg">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`mb-3 flex ${msg.user_id === userId ? "justify-end" : "justify-start"}`}>
+              <div className={`p-3 rounded-lg shadow ${msg.user_id === userId ? "bg-blue-500 text-white" : "bg-gray-300 text-black"}`}>
+                <p className="text-sm">{msg.content}</p>
+                <p className="text-xs text-gray-500 mt-1">{new Date(msg.created_at).toLocaleTimeString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center mt-4">
+          <input
+            type="text"
+            className="flex-1 p-2 border rounded-lg"
+            placeholder="Type a message..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+          <button onClick={sendMessage} className="ml-2 bg-blue-500 text-white px-4 py-2 rounded-lg">Send</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+=== src/app/survey/questions.json ===
+[
+  {
+    "question": "How would you describe your political leaning?",
+    "type": "multiple_choice",
+    "options": [
+      "Very liberal",
+      "Somewhat liberal",
+      "Moderate",
+      "Somewhat conservative",
+      "Very conservative"
+    ]
+  },
+  {
+    "question": "What's your stance on climate change?",
+    "type": "multiple_choice",
+    "options": [
+      "Urgent crisis requiring immediate action",
+      "Serious concern but balanced approach",
+      "Needs attention but not a crisis",
+      "Skeptical about severity",
+      "Not convinced by current evidence"
+    ]
+  },
+  {
+    "question": "What's a political or social topic you feel strongly about, and why?",
+    "type": "free_response"
+  }
+]
+=== src/app/survey/page.tsx ===
+// Simple survey with political questions, etc, including multiple choice and free response. React component OnClick to submit form data to Supabase, then redirect to "Loading Match" page.
+// The form data should be sent in to be stored with the user's profile, and also sent along with everyone else's data to the GPT API be matched with other users.
+// For the GPT API, we will need to send the data in a specific format, and then receive the data back in a specific format, so prompt accordingly.
+
+'use client';
+
+import React, { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+
+import questions from './questions.json';
+
+export default function Survey() {
+    const router = useRouter();
+    const [answers, setAnswers] = useState({});
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+            // First make sure profile exists
+            const { error: profileError } = await supabase.from('profile').upsert({
+                id: user.id,
+                name: user.user_metadata?.name || user.user_metadata?.full_name,
+                email: user.email,
+                avatar_url: user.user_metadata?.avatar_url
+            });
+
+            if (profileError) console.error("Profile error:", profileError);
+
+            // Then save survey answers
+            const { error: surveyError } = await supabase.from('survey_responses').insert({
+                user_id: user.id,
+                answers: answers
+            });
+
+            if (surveyError) console.error("Survey error:", surveyError);
+            else router.push('/matching');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            {questions.map((q, i) => (
+                <div key={i}>
+                    <h3>{q.question}</h3>
+
+                    {q.type === 'multiple_choice' && q.options?.map((option, j) => (
+                        <label key={j}>
+                            <input
+                                type="radio"
+                                name={`q-${i}`}
+                                onChange={() => setAnswers({...answers, [i]: option})}
+                                required
+                            />
+                            {option}
+                        </label>
+                    ))}
+
+                    {q.type === 'free_response' && (
+                        <textarea
+                            onChange={(e) => setAnswers({...answers, [i]: e.target.value})}
+                            required
+                        />
+                    )}
+                </div>
+            ))}
+            <button type="submit">Submit</button>
+        </form>
+    );
+}
+
+
+
+=== src/lib/user.tsx ===
+import { supabase } from './supabase';
+
+export async function getUserProfile() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    // Try to get profile
+    const { data: profile } = await supabase.from('profile')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+    return { user, profile };
+}
+=== src/lib/supabase.tsx ===
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
