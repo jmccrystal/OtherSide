@@ -133,33 +133,49 @@ export default function Chat() {
     fetchMessages();
 
     // Realtime subscription
-    const subscription = supabase
+    const channel = supabase
         .channel("messages_channel")
         .on("postgres_changes", {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `receiver_id=eq.${userId}`
         }, (payload) => {
           const newMsg = payload.new as Message;
 
-          // Show browser notification
-          if (newMsg.user_id === matchId && notificationPermission === "granted") {
-            const matchName = matchProfile?.name || "Your match";
-            new Notification(`New message from ${matchName}`, {
-              body: newMsg.content.substring(0, 60) + (newMsg.content.length > 60 ? '...' : ''),
-              icon: '/notification-icon.png' // Add an icon to your public folder
-            });
-          }
+          // Only process messages that are part of this conversation
+          if ((newMsg.user_id === userId && newMsg.receiver_id === matchId) ||
+              (newMsg.user_id === matchId && newMsg.receiver_id === userId)) {
 
-          setMessages(prev => [...prev, newMsg]);
-          setLastActivity(new Date());
-          setShowNewMatchButton(false);
+            console.log("New message received in real-time:", newMsg);
+
+            // Show browser notification for messages from match
+            if (newMsg.user_id === matchId && notificationPermission === "granted") {
+              const matchName = matchProfile?.name || "Your match";
+              try {
+                new Notification(`New message from ${matchName}`, {
+                  body: newMsg.content.substring(0, 60) + (newMsg.content.length > 60 ? '...' : ''),
+                  icon: '/notification-icon.png' // Add an icon to your public folder
+                });
+              } catch (e) {
+                console.error("Failed to send notification:", e);
+              }
+            }
+
+            // Update messages
+            setMessages(prev => {
+              // Avoid duplicate messages
+              const msgExists = prev.some(m => m.id === newMsg.id);
+              return msgExists ? prev : [...prev, newMsg];
+            });
+
+            setLastActivity(new Date());
+            setShowNewMatchButton(false);
+          }
         })
         .subscribe();
 
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
   }, [userId, matchId, matchProfile, notificationPermission]);
 
@@ -178,21 +194,45 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!userId || !matchId || newMessage.trim() === "") return;
 
-    const message = {
+    // First, optimistically update the UI
+    const tempId = Math.random().toString();
+    const optimisticMessage = {
+      id: tempId,
       user_id: userId,
       receiver_id: matchId,
       content: newMessage,
       created_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("messages").insert([message]);
+    // Add to messages immediately for instant feedback
+    setMessages(prev => [...prev, optimisticMessage]);
+
+    // Clear input field
+    setNewMessage("");
+
+    // Update activity state
+    setLastActivity(new Date());
+    setShowNewMatchButton(false);
+
+    // Then actually send the message
+    const { error, data } = await supabase.from("messages").insert([{
+      user_id: userId,
+      receiver_id: matchId,
+      content: optimisticMessage.content,
+      created_at: optimisticMessage.created_at,
+    }]).select();
 
     if (error) {
       console.error("Error sending message:", error);
-    } else {
-      setNewMessage("");
-      setLastActivity(new Date());
-      setShowNewMatchButton(false);
+      // Remove the optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      // Restore the message to the input
+      setNewMessage(optimisticMessage.content);
+    } else if (data && data[0]) {
+      // Replace optimistic message with real one (with real ID)
+      setMessages(prev => prev.map(m =>
+          m.id === tempId ? data[0] : m
+      ));
     }
   };
 
@@ -248,7 +288,18 @@ export default function Chat() {
             </h1>
             {notificationPermission !== "granted" && (
                 <button
-                    onClick={() => Notification.requestPermission().then(perm => setNotificationPermission(perm))}
+                    onClick={() => {
+                      Notification.requestPermission().then(permission => {
+                        console.log("Notification permission:", permission);
+                        setNotificationPermission(permission);
+                        if (permission === "granted") {
+                          // Send test notification
+                          new Notification("Notifications enabled", {
+                            body: "You'll now receive notifications for new messages"
+                          });
+                        }
+                      });
+                    }}
                     className="text-xs bg-white text-indigo-600 px-2 py-1 rounded mt-1 hover:bg-gray-100"
                 >
                   Enable Notifications
@@ -260,6 +311,22 @@ export default function Chat() {
               <div className="bg-indigo-100 p-4 border-b border-indigo-200">
                 <h3 className="font-bold text-indigo-800 text-sm">Why you were matched:</h3>
                 <p className="text-indigo-900 text-sm">{matchReason}</p>
+                {myProfile?.responses?.disagreement_score && (
+                    <div className="mt-2 flex items-center">
+                      <span className="text-xs text-indigo-800 mr-2">Disagreement score:</span>
+                      <div className="h-3 w-32 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-indigo-600"
+                            style={{
+                              width: `${Math.min(100, Math.max(0, myProfile.responses.disagreement_score * 100))}%`
+                            }}
+                        ></div>
+                      </div>
+                      <span className="text-xs ml-2">
+                  {(myProfile.responses.disagreement_score * 100).toFixed(0)}%
+                </span>
+                    </div>
+                )}
               </div>
           )}
 
