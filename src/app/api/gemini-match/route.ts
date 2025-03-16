@@ -14,14 +14,13 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(request: Request) {
     try {
-        // Get the request body which will contain the user ID
         const { userId } = await request.json();
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID required' }, { status: 400 });
         }
 
-        // Fetch current user's profile to get previous_matches
+        // Fetch current user's profile for previous_matches
         const { data: currentUserProfile, error: profileError } = await supabaseAdmin
             .from('profile')
             .select('id, responses')
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
 
         const previousMatches = (currentUserProfile?.responses?.previous_matches) || [];
 
-        // Get all survey responses with admin client (bypasses RLS)
+        // Get all survey responses (bypassing RLS)
         const { data: allResponses, error: responsesError } = await supabaseAdmin
             .from('survey_responses')
             .select('*');
@@ -45,16 +44,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to fetch survey data' }, { status: 500 });
         }
 
-        // Find current user's response
+        // Find current user's survey response
         const currentUserResponse = allResponses?.find(r => r.user_id === userId);
         if (!currentUserResponse) {
             return NextResponse.json({ error: 'Survey not completed' }, { status: 400 });
         }
 
-        // Get other users' responses
+        // Filter out the current user's response
         let otherResponses = allResponses.filter(r => r.user_id !== userId);
         if (otherResponses.length === 0) {
-            return NextResponse.json({ error: 'No other users to match with yet' }, { status: 404 });
+            return NextResponse.json({}, { status: 200 });
         }
 
         // Fetch candidate profiles for filtering
@@ -69,27 +68,22 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to fetch candidate profiles' }, { status: 500 });
         }
 
-        // Filter out candidates that have been matched with before or are already in a chat
+        // Exclude candidates already in a chat or matched before with current user
         otherResponses = otherResponses.filter(r => {
             const candidateProfile = candidateProfiles.find(p => p.id === r.user_id);
             if (!candidateProfile) return false;
-            // Exclude if candidate already has an active match
             if (candidateProfile.responses && candidateProfile.responses.matched_with) return false;
-            // Exclude if candidate has been matched before with the current user
             if (previousMatches.includes(r.user_id)) return false;
             return true;
         });
 
         if (otherResponses.length === 0) {
-            return NextResponse.json({
-                error: 'No suitable matches available right now. Please try again later.',
-                status: 'no_matches'
-            }, { status: 200 });
+            // Return an empty object so the client keeps polling (spinner remains)
+            return NextResponse.json({}, { status: 200 });
         }
 
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        // Format data for Gemini with disagreement score
         const prompt = `
       You are an algorithm that matches people with opposing political views who can have a productive conversation.
       
@@ -119,14 +113,12 @@ export async function POST(request: Request) {
       }
     `;
 
-        // Call Gemini API
         const result = await model.generateContent(prompt);
         const response = result.response;
         let matchData;
 
         try {
             matchData = JSON.parse(response.text());
-            console.log('Disagreement scores:');
             if (matchData.matches && matchData.matches.length > 0) {
                 matchData.matches.forEach(match => {
                     console.log(`Match ${match.user_id}: ${match.disagreement_score.toFixed(2)} (${match.disagreement_score * 100}%)`);
@@ -139,18 +131,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'AI returned invalid format' }, { status: 500 });
         }
 
+        // If no matches are returned, simply return an empty object so the client continues polling.
         if (!matchData.matches || matchData.matches.length === 0) {
-            return NextResponse.json({
-                error: 'No suitable matches available right now. Please try again later.',
-                status: 'no_matches'
-            }, { status: 200 });
+            return NextResponse.json({}, { status: 200 });
         }
 
-        // Sort matches by disagreement score (highest first)
+        // Sort matches by highest disagreement score
         const sortedMatches = matchData.matches.sort((a, b) => b.disagreement_score - a.disagreement_score);
         const bestMatch = sortedMatches[0];
 
-        // Update user profile with match info
+        // Update the current user's profile with the new match info
         await supabaseAdmin
             .from('profile')
             .update({
@@ -172,3 +162,4 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message || 'Matching failed' }, { status: 500 });
     }
 }
+
