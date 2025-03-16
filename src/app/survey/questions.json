@@ -1,28 +1,76 @@
 [
   {
-    "question": "How would you describe your political leaning?",
+    "question": "What kind of environment shaped your early years the most?",
     "type": "multiple_choice",
     "options": [
-      "Very liberal",
-      "Somewhat liberal",
-      "Moderate",
-      "Somewhat conservative",
-      "Very conservative"
+      "A small, tight-knit community where everyone knew each other",
+      "A big city with diverse cultures and fast-paced living",
+      "A mix of different places due to frequent moving or travel",
+      "A structured environment with strong academic or cultural expectations",
+      "A unique or unconventional setting that shaped my worldview"
     ]
   },
   {
-    "question": "What's your stance on climate change?",
+    "question": "How do you naturally process new information and ideas?",
     "type": "multiple_choice",
     "options": [
-      "Urgent crisis requiring immediate action",
-      "Serious concern but balanced approach",
-      "Needs attention but not a crisis",
-      "Skeptical about severity",
-      "Not convinced by current evidence"
+      "I analyze facts, logic, and research before forming an opinion",
+      "I rely on my intuition, emotions, and lived experiences",
+      "I weigh both perspectives, depending on the situation",
+      "I enjoy discussing ideas with others before deciding",
+      "I often remain undecided and open to multiple viewpoints"
     ]
   },
   {
-    "question": "What's a political or social topic you feel strongly about, and why?",
+    "question": "What role do difficult conversations play in your life?",
+    "type": "multiple_choice",
+    "options": [
+      "I thrive on debate and challenging discussions",
+      "I prefer thoughtful, slow-paced conversations with depth",
+      "I engage when necessary but don’t seek them out",
+      "I avoid heated discussions whenever possible"
+    ]
+  },
+  {
+    "question": "What drives your passion and curiosity the most?",
+    "type": "multiple_choice",
+    "options": [
+      "Understanding how things work, problem-solving, and innovation",
+      "Creative expression, storytelling, and artistic perspectives",
+      "Human connection, relationships, and emotional depth",
+      "Making a tangible impact in the world through action",
+      "Seeking personal growth, introspection, and self-improvement"
+    ]
+  },
+  {
+    "question": "Which type of conversation leaves you feeling the most energized?",
+    "type": "multiple_choice",
+    "options": [
+      "A philosophical discussion that challenges how I see the world",
+      "A personal story that connects people on a deep level",
+      "A debate about real-world issues and current events",
+      "A relaxed, open-ended conversation about anything",
+      "A theoretical 'what if' discussion that makes me think"
+    ]
+  },
+  {
+    "question": "What is one life experience that shaped the way you see the world today?",
+    "type": "free_response"
+  },
+  {
+    "question": "If you could spend a day in someone else’s life, whose would it be and why?",
+    "type": "free_response"
+  },
+  {
+    "question": "What is one assumption people often make about you that isn’t true?",
+    "type": "free_response"
+  },
+  {
+    "question": "When was the last time you completely changed your mind about something? What caused that shift?",
+    "type": "free_response"
+  },
+  {
+    "question": "What’s a question you’ve always wanted to ask someone with an opposing worldview?",
     "type": "free_response"
   }
 ]
