@@ -8,7 +8,7 @@ import { updateActivity } from '@/lib/activity';
 export default function MatchingPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
-    const [state, setState] = useState<'loading' | 'error' | 'no_matches'>('loading');
+    const [state, setState] = useState<'loading' | 'error'>('loading');
 
     useEffect(() => {
         // Update user activity
@@ -64,9 +64,7 @@ export default function MatchingPage() {
                 const data = await response.json();
 
                 if (response.ok) {
-                    if (data.status === 'no_matches') {
-                        setState('no_matches');
-                    } else if (data.match_id) {
+                    if (data.match_id) {
                         // Match found, notify user
                         if ("Notification" in window && Notification.permission === "granted") {
                             new Notification("Match Found!", {
@@ -77,6 +75,7 @@ export default function MatchingPage() {
                         // Redirect to chat
                         router.push(`/chat?match=${data.match_id}`);
                     }
+                    // If no match is found, do nothing so that the spinner remains loading.
                 } else if (response.status === 303) {
                     // Redirect to survey
                     router.push('/survey');
@@ -92,25 +91,6 @@ export default function MatchingPage() {
 
         checkSurveyAndMatch();
     }, [router]);
-
-    if (state === 'no_matches') {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-500 to-purple-600 p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-                    <h2 className="text-xl font-bold text-indigo-600 mb-4">No matches available</h2>
-                    <p className="text-gray-700 mb-6">
-                        There are no suitable matches online right now. Please check back later when more users are active.
-                    </p>
-                    <button
-                        onClick={() => setState('loading')}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg font-medium transition-colors"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     if (state === 'error') {
         return (
@@ -137,6 +117,7 @@ export default function MatchingPage() {
         );
     }
 
+    // Always show loading spinner while matching is in progress or no match is found.
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-500 to-purple-600 p-4">
             <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
