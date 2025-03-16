@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       
       Other users' survey responses:
       ${JSON.stringify(otherResponses.map(r => ({ id: r.user_id, answers: r.answers })))}
-      
+      IMPORTANT!!!!!! DO NOT INCLUDE A CODE BLOCK. NO CODE BLOCKS ALLOWED. NO. NO \`\`\`. NO \`\`\` NO. I REPEAT, NO CODE BLOCKS ALLOWED. IT WILL FUCK EVERYTHING UP.
       Return a JSON object with ONLY:
       {
         "matches": [
