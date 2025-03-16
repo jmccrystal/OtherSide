@@ -110,8 +110,8 @@ export default function Chat() {
     };
 
     fetchMessages();
-    // Poll every 5 seconds in case realtime misses an update
-    const interval = setInterval(fetchMessages, 5000);
+    // Poll every 100ms in case realtime misses an update
+    const interval = setInterval(fetchMessages, 100);
 
     // Realtime subscription for new messages
     const channel = supabase

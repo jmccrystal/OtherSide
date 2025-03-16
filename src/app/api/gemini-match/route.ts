@@ -105,7 +105,7 @@ export async function POST(request: Request) {
         "matches": [
           {
             "user_id": "user_id_of_match",
-            "disagreement_score": 0.75,
+            "disagreement_score": 0.00,
             "match_reason": "Brief explanation of why these users would have an interesting conversation"
           },
           ...more matches if available
