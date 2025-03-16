@@ -110,8 +110,8 @@ export default function Chat() {
     };
 
     fetchMessages();
-    // Poll every 100 ms in case realtime misses an update
-    const interval = setInterval(fetchMessages, 100);
+    // Poll every 500 ms in case realtime misses an update
+    const interval = setInterval(fetchMessages, 500);
 
     // Realtime subscription for new messages
     const channel = supabase
@@ -187,9 +187,22 @@ export default function Chat() {
     }
   };
 
-  // Updated findNewMatch function: adds current match to previous_matches and clears current match info.
   const findNewMatch = async () => {
     if (userId && matchId && myProfile) {
+      // Prepare a disconnection message using the user's name if available
+      const disconnectMessage = myProfile.name
+          ? `${myProfile.name} has disconnected.`
+          : 'This user has disconnected.';
+
+      // Insert the disconnection message into the messages table so that the other user sees it
+      await supabase.from('messages').insert([{
+        user_id: userId,
+        receiver_id: matchId,
+        content: disconnectMessage,
+        created_at: new Date().toISOString(),
+      }]);
+
+      // Update the current user's profile responses to remove the current match and add it to previous_matches
       const updatedResponses = {
         ...myProfile.responses,
         previous_matches: [...(myProfile.responses?.previous_matches || []), matchId],
@@ -203,9 +216,11 @@ export default function Chat() {
           .update({ responses: updatedResponses })
           .eq('id', userId);
 
+      // Redirect to the matching page for a new match
       router.push('/matching');
     }
   };
+
 
   if (loading) {
     return (
