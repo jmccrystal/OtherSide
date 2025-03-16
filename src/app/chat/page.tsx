@@ -41,7 +41,6 @@ export default function Chat() {
   useEffect(() => {
     if ("Notification" in window) {
       setNotificationPermission(Notification.permission);
-
       if (Notification.permission !== "granted" && Notification.permission !== "denied") {
         Notification.requestPermission().then(permission => {
           setNotificationPermission(permission);
@@ -53,81 +52,57 @@ export default function Chat() {
   // Auth and profile data
   useEffect(() => {
     const getAuth = async () => {
-      // Update activity status
       updateActivity();
-
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/');
         return;
       }
-
       setUserId(user.id);
-
-      // Get my profile
       const { data: profile } = await supabase
           .from('profile')
           .select('*')
           .eq('id', user.id)
           .single();
-
       if (profile) {
         setMyProfile(profile);
-
-        // If we have match info in profile, use it
         if (profile.responses?.match_reason) {
           setMatchReason(profile.responses.match_reason);
         }
       }
-
-      // Get match profile if we have a match ID
       if (matchId) {
         const { data: matchProfile } = await supabase
             .from('profile')
             .select('*')
             .eq('id', matchId)
             .single();
-
         if (matchProfile) {
-          // Parse name to get first name only
           const fullName = matchProfile.name || '';
           const firstName = fullName.split(' ')[0];
-
-          setMatchProfile({
-            ...matchProfile,
-            name: firstName
-          });
+          setMatchProfile({ ...matchProfile, name: firstName });
         }
       }
-
       setLoading(false);
     };
-
     getAuth();
   }, [matchId, router]);
 
-  // Message handling
+  // Message handling with realtime subscription and polling
   useEffect(() => {
     if (!userId || !matchId) return;
 
     const fetchMessages = async () => {
-      // Get messages between these two users
       const { data, error } = await supabase
           .from("messages")
           .select("*")
           .or(`and(user_id.eq.${userId},receiver_id.eq.${matchId}),and(user_id.eq.${matchId},receiver_id.eq.${userId})`)
           .order("created_at", { ascending: true });
-
       if (error) console.error("Error fetching messages:", error);
       else if (data) {
         setMessages(data);
-
-        // Check conversation activity to show new match button
         if (data.length > 0) {
           const lastMsgTime = new Date(data[data.length - 1].created_at);
           setLastActivity(lastMsgTime);
-
-          // For demo, show new match after 1 minute, not 7 days
           const minutesSinceLastMessage = (new Date().getTime() - lastMsgTime.getTime()) / (1000 * 60);
           setShowNewMatchButton(minutesSinceLastMessage > 1);
         }
@@ -135,8 +110,10 @@ export default function Chat() {
     };
 
     fetchMessages();
+    // Poll every 5 seconds in case realtime misses an update
+    const interval = setInterval(fetchMessages, 5000);
 
-    // Realtime subscription
+    // Realtime subscription for new messages
     const channel = supabase
         .channel("public:messages")
         .on("postgres_changes", {
@@ -144,41 +121,31 @@ export default function Chat() {
           schema: "public",
           table: "messages"
         }, (payload) => {
-          console.log("Received message event:", payload);
           const newMsg = payload.new as Message;
-
-          // Only process messages that are part of this conversation
-          if ((newMsg.user_id === userId && newMsg.receiver_id === matchId) ||
-              (newMsg.user_id === matchId && newMsg.receiver_id === userId)) {
-
-            console.log("New message in current conversation:", newMsg);
-
-            // Show browser notification for messages from match
+          if (
+              (newMsg.user_id === userId && newMsg.receiver_id === matchId) ||
+              (newMsg.user_id === matchId && newMsg.receiver_id === userId)
+          ) {
             if (newMsg.user_id === matchId && notificationPermission === "granted") {
               const matchName = matchProfile?.name || "Your match";
               try {
                 new Notification(`New message from ${matchName}`, {
                   body: newMsg.content.substring(0, 60) + (newMsg.content.length > 60 ? '...' : ''),
-                  icon: '/notification-icon.png' // Add an icon to your public folder
+                  icon: '/notification-icon.png'
                 });
               } catch (e) {
                 console.error("Failed to send notification:", e);
               }
             }
-
-            // Update messages
             setMessages(prev => {
-              // Avoid duplicate messages
               const msgExists = prev.some(m =>
-                  (m.id === newMsg.id) ||
-                  // Also check content + timestamp to catch optimistic updates
+                  m.id === newMsg.id ||
                   (m.user_id === newMsg.user_id &&
                       m.content === newMsg.content &&
                       Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000)
               );
               return msgExists ? prev : [...prev, newMsg];
             });
-
             setLastActivity(new Date());
             setShowNewMatchButton(false);
           }
@@ -186,26 +153,13 @@ export default function Chat() {
         .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [userId, matchId, matchProfile, notificationPermission]);
 
-  // Check activity every minute to update "Find New Match" button
-  useEffect(() => {
-    if (!lastActivity) return;
-
-    const interval = setInterval(() => {
-      const minutesSinceLastMessage = (new Date().getTime() - lastActivity.getTime()) / (1000 * 60);
-      setShowNewMatchButton(minutesSinceLastMessage > 1);
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [lastActivity]);
-
   const sendMessage = async () => {
     if (!userId || !matchId || newMessage.trim() === "") return;
-
-    // First, optimistically update the UI
     const tempId = Math.random().toString();
     const optimisticMessage = {
       id: tempId,
@@ -214,41 +168,26 @@ export default function Chat() {
       content: newMessage,
       created_at: new Date().toISOString(),
     };
-
-    // Add to messages immediately for instant feedback
     setMessages(prev => [...prev, optimisticMessage]);
-
-    // Clear input field
     setNewMessage("");
-
-    // Update activity state
     setLastActivity(new Date());
     setShowNewMatchButton(false);
-
-    // Then actually send the message
     const { error, data } = await supabase.from("messages").insert([{
       user_id: userId,
       receiver_id: matchId,
       content: optimisticMessage.content,
       created_at: optimisticMessage.created_at,
     }]).select();
-
     if (error) {
       console.error("Error sending message:", error);
-      // Remove the optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== tempId));
-      // Restore the message to the input
       setNewMessage(optimisticMessage.content);
     } else if (data && data[0]) {
-      // Replace optimistic message with real one (with real ID)
-      setMessages(prev => prev.map(m =>
-          m.id === tempId ? data[0] : m
-      ));
+      setMessages(prev => prev.map(m => m.id === tempId ? data[0] : m));
     }
   };
 
   const findNewMatch = async () => {
-    // Mark current match as inactive in profile
     if (userId) {
       await supabase
           .from('profile')
@@ -259,8 +198,6 @@ export default function Chat() {
             }
           })
           .eq('id', userId);
-
-      // Redirect to matching page
       router.push('/matching');
     }
   };
@@ -301,10 +238,8 @@ export default function Chat() {
                 <button
                     onClick={() => {
                       Notification.requestPermission().then(permission => {
-                        console.log("Notification permission:", permission);
                         setNotificationPermission(permission);
                         if (permission === "granted") {
-                          // Send test notification
                           new Notification("Notifications enabled", {
                             body: "You'll now receive notifications for new messages"
                           });
@@ -348,7 +283,6 @@ export default function Chat() {
                   <p className="text-sm mt-2">You were matched because you have different perspectives.</p>
                 </div>
             )}
-
             {messages.map((msg) => (
                 <div key={msg.id} className={`mb-3 flex ${msg.user_id === userId ? "justify-end" : "justify-start"}`}>
                   <div

@@ -1,5 +1,4 @@
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
@@ -10,6 +9,9 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
 export async function POST(request: Request) {
     try {
         // Get the request body which will contain the user ID
@@ -18,6 +20,20 @@ export async function POST(request: Request) {
         if (!userId) {
             return NextResponse.json({ error: 'User ID required' }, { status: 400 });
         }
+
+        // Fetch current user's profile to get previous_matches
+        const { data: currentUserProfile, error: profileError } = await supabaseAdmin
+            .from('profile')
+            .select('id, responses')
+            .eq('id', userId)
+            .single();
+
+        if (profileError) {
+            console.error('Error fetching current user profile:', profileError);
+            return NextResponse.json({ error: 'Failed to fetch current user profile' }, { status: 500 });
+        }
+
+        const previousMatches = (currentUserProfile?.responses?.previous_matches) || [];
 
         // Get all survey responses with admin client (bypasses RLS)
         const { data: allResponses, error: responsesError } = await supabaseAdmin
@@ -29,19 +45,46 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to fetch survey data' }, { status: 500 });
         }
 
-        console.log('All responses:', allResponses);
-
         // Find current user's response
         const currentUserResponse = allResponses?.find(r => r.user_id === userId);
-        console.log('Current user response:', currentUserResponse);
         if (!currentUserResponse) {
             return NextResponse.json({ error: 'Survey not completed' }, { status: 400 });
         }
 
         // Get other users' responses
-        const otherResponses = allResponses.filter(r => r.user_id !== userId);
+        let otherResponses = allResponses.filter(r => r.user_id !== userId);
         if (otherResponses.length === 0) {
             return NextResponse.json({ error: 'No other users to match with yet' }, { status: 404 });
+        }
+
+        // Fetch candidate profiles for filtering
+        const candidateIds = otherResponses.map(r => r.user_id);
+        const { data: candidateProfiles, error: candidateProfilesError } = await supabaseAdmin
+            .from('profile')
+            .select('id, responses')
+            .in('id', candidateIds);
+
+        if (candidateProfilesError) {
+            console.error('Error fetching candidate profiles:', candidateProfilesError);
+            return NextResponse.json({ error: 'Failed to fetch candidate profiles' }, { status: 500 });
+        }
+
+        // Filter out candidates that have been matched with before or are already in a chat
+        otherResponses = otherResponses.filter(r => {
+            const candidateProfile = candidateProfiles.find(p => p.id === r.user_id);
+            if (!candidateProfile) return false;
+            // Exclude if candidate already has an active match
+            if (candidateProfile.responses && candidateProfile.responses.matched_with) return false;
+            // Exclude if candidate has been matched before with the current user
+            if (previousMatches.includes(r.user_id)) return false;
+            return true;
+        });
+
+        if (otherResponses.length === 0) {
+            return NextResponse.json({
+                error: 'No suitable matches available right now. Please try again later.',
+                status: 'no_matches'
+            }, { status: 200 });
         }
 
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -62,7 +105,7 @@ export async function POST(request: Request) {
       
       Other users' survey responses:
       ${JSON.stringify(otherResponses.map(r => ({ id: r.user_id, answers: r.answers })))}
-      VERY IMPORTANT: Return the JSON object as plain text without any markdown formatting, triple backticks, or code fences.
+      IMPORTANT: Return the JSON object as plain text without any markdown formatting, triple backticks, or code fences.
       Return a JSON object with ONLY:
       {
         "matches": [
@@ -82,10 +125,7 @@ export async function POST(request: Request) {
         let matchData;
 
         try {
-            console.log(response.text)
             matchData = JSON.parse(response.text());
-
-            // Log scoring info
             console.log('Disagreement scores:');
             if (matchData.matches && matchData.matches.length > 0) {
                 matchData.matches.forEach(match => {
@@ -99,20 +139,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'AI returned invalid format' }, { status: 500 });
         }
 
-        // No matches above threshold
         if (!matchData.matches || matchData.matches.length === 0) {
             return NextResponse.json({
                 error: 'No suitable matches available right now. Please try again later.',
                 status: 'no_matches'
-            }, { status: 200 }); // Return 200 so we can handle it gracefully
+            }, { status: 200 });
         }
 
         // Sort matches by disagreement score (highest first)
-        const sortedMatches = matchData.matches.sort(
-            (a, b) => b.disagreement_score - a.disagreement_score
-        );
-
-        // Select best match
+        const sortedMatches = matchData.matches.sort((a, b) => b.disagreement_score - a.disagreement_score);
         const bestMatch = sortedMatches[0];
 
         // Update user profile with match info
