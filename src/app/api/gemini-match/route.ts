@@ -46,11 +46,16 @@ export async function POST(request: Request) {
 
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        // Format data for Gemini
+        // Format data for Gemini with disagreement score
         const prompt = `
       You are an algorithm that matches people with opposing political views who can have a productive conversation.
       
-      Find the BEST MATCH for the current user based on having significantly different political views but potential for constructive dialogue.
+      Analyze the current user's survey responses against all potential matches. For each potential match:
+      1. Calculate a disagreement score from 0.0 to 1.0 where:
+         - 0.0 means completely aligned views
+         - 1.0 means completely opposing views but could have constructive dialogue
+      2. Only include matches with a disagreement score >= 0.5
+      3. Provide a brief reason why each match would lead to an interesting conversation
       
       Current user's survey responses:
       ${JSON.stringify(currentUserResponse.answers)}
@@ -60,11 +65,15 @@ export async function POST(request: Request) {
       
       Return a JSON object with ONLY:
       {
-        "match_id": "user_id_of_best_match",
-        "match_reason": "Brief explanation of why these users would have an interesting conversation"
+        "matches": [
+          {
+            "user_id": "user_id_of_match",
+            "disagreement_score": 0.75,
+            "match_reason": "Brief explanation of why these users would have an interesting conversation"
+          },
+          ...more matches if available
+        ]
       }
-      
-      IMPORTANT: DO NOT INCLUDE A CODE BLOCK. RESPONSE SHOULD BE RAW JSON ONLY. NO \`\`\`json TAGS.
     `;
 
         // Call Gemini API
@@ -74,23 +83,54 @@ export async function POST(request: Request) {
 
         try {
             matchData = JSON.parse(response.text());
+
+            // Log scoring info
+            console.log('Disagreement scores:');
+            if (matchData.matches && matchData.matches.length > 0) {
+                matchData.matches.forEach(match => {
+                    console.log(`Match ${match.user_id}: ${match.disagreement_score.toFixed(2)} (${match.disagreement_score * 100}%)`);
+                });
+            } else {
+                console.log('No matches found');
+            }
         } catch (e) {
             console.error('Failed to parse Gemini response:', response.text());
             return NextResponse.json({ error: 'AI returned invalid format' }, { status: 500 });
         }
+
+        // No matches above threshold
+        if (!matchData.matches || matchData.matches.length === 0) {
+            return NextResponse.json({
+                error: 'No suitable matches available right now. Please try again later.',
+                status: 'no_matches'
+            }, { status: 200 }); // Return 200 so we can handle it gracefully
+        }
+
+        // Sort matches by disagreement score (highest first)
+        const sortedMatches = matchData.matches.sort(
+            (a, b) => b.disagreement_score - a.disagreement_score
+        );
+
+        // Select best match
+        const bestMatch = sortedMatches[0];
 
         // Update user profile with match info
         await supabaseAdmin
             .from('profile')
             .update({
                 responses: {
-                    matched_with: matchData.match_id,
-                    match_reason: matchData.match_reason
+                    matched_with: bestMatch.user_id,
+                    match_reason: bestMatch.match_reason,
+                    disagreement_score: bestMatch.disagreement_score
                 }
             })
             .eq('id', userId);
 
-        return NextResponse.json(matchData);
+        return NextResponse.json({
+            match_id: bestMatch.user_id,
+            match_reason: bestMatch.match_reason,
+            disagreement_score: bestMatch.disagreement_score
+        });
     } catch (error: any) {
         console.error('Error in matching:', error);
         return NextResponse.json({ error: error.message || 'Matching failed' }, { status: 500 });

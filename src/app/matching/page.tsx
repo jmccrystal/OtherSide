@@ -14,6 +14,11 @@ export default function MatchingPage() {
         // Update user activity
         updateActivity();
 
+        // Request notification permission
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+
         const checkSurveyAndMatch = async () => {
             try {
                 // Get current user
@@ -62,7 +67,14 @@ export default function MatchingPage() {
                     if (data.status === 'no_matches') {
                         setState('no_matches');
                     } else if (data.match_id) {
-                        // Match found, redirect to chat
+                        // Match found, notify user
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            new Notification("Match Found!", {
+                                body: "We found someone with different perspectives for you to chat with.",
+                                icon: "/notification-icon.png"
+                            });
+                        }
+                        // Redirect to chat
                         router.push(`/chat?match=${data.match_id}`);
                     }
                 } else if (response.status === 303) {

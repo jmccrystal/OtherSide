@@ -138,19 +138,20 @@ export default function Chat() {
 
     // Realtime subscription
     const channel = supabase
-        .channel("messages_channel")
+        .channel("public:messages")
         .on("postgres_changes", {
           event: "INSERT",
           schema: "public",
-          table: "messages",
+          table: "messages"
         }, (payload) => {
+          console.log("Received message event:", payload);
           const newMsg = payload.new as Message;
 
           // Only process messages that are part of this conversation
           if ((newMsg.user_id === userId && newMsg.receiver_id === matchId) ||
               (newMsg.user_id === matchId && newMsg.receiver_id === userId)) {
 
-            console.log("New message received in real-time:", newMsg);
+            console.log("New message in current conversation:", newMsg);
 
             // Show browser notification for messages from match
             if (newMsg.user_id === matchId && notificationPermission === "granted") {
@@ -168,7 +169,13 @@ export default function Chat() {
             // Update messages
             setMessages(prev => {
               // Avoid duplicate messages
-              const msgExists = prev.some(m => m.id === newMsg.id);
+              const msgExists = prev.some(m =>
+                  (m.id === newMsg.id) ||
+                  // Also check content + timestamp to catch optimistic updates
+                  (m.user_id === newMsg.user_id &&
+                      m.content === newMsg.content &&
+                      Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000)
+              );
               return msgExists ? prev : [...prev, newMsg];
             });
 
